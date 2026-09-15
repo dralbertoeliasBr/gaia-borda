@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "sensitive_words": ["emergencia","médico","remédio","senha","pin"],
+  "gesture_mapping": {"blink_short":"sim","blink_long":"não"},
+  "modules": {
+    "langvoice": {"opt_in":true,"description":"ASR/TTS/LLM scaffold"},
+    "vision": {"opt_in":true,"description":"Visão/gestos (MediaPipe/TFJS)"},
+    "math": {"opt_in":false,"description":"math.js local numeric"}
+  }
+}

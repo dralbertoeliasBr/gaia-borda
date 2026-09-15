@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GAIA — BOLINHA (Protótipo)</title>
+  <style>
+    :root{--bg:rgba(0,0,0,0.6);--accent:#0ad;--white:#fff}
+    body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    #gaia-bubble{position:fixed;right:18px;bottom:18px;width:64px;height:64px;border-radius:50%;background:var(--accent);box-shadow:0 6px 18px rgba(0,0,0,.25);z-index:999999;display:flex;align-items:center;justify-content:center;color:var(--white);font-weight:700;cursor:pointer}
+    #gaia-panel{position:fixed;right:18px;bottom:90px;width:320px;max-width:92vw;background:var(--bg);backdrop-filter:blur(6px);color:var(--white);padding:12px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:999999;display:none}
+    #gaia-log{height:140px;overflow:auto;font-size:14px}
+    button{background:transparent;border:1px solid rgba(255,255,255,.12);color:var(--white);padding:6px 8px;border-radius:6px;margin-right:6px}
+    #gaia-status{font-size:12px;color:#ddd}
+  </style>
+</head>
+<body>
+  <div id="gaia-bubble" title="Abrir GAIA">GA</div>
+  <div id="gaia-panel" role="dialog" aria-label="GAIA control panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div><strong>GAIA — Protótipo</strong><div id="gaia-status">inativo</div></div>
+      <div>
+        <button id="start-listen">Falar</button>
+        <button id="stop-listen">Parar</button>
+      </div>
+    </div>
+    <div id="gaia-log">Logs aparecerão aqui</div>
+    <div style="margin-top:8px;font-size:12px;color:#ccc">Gestos: demo piscar (webcam) — em desenvolvimento</div>
+    <div style="margin-top:8px"><small>Privacidade: tudo local por padrão. Módulos pesados opt-in.</small></div>
+  </div>
+
+  <script>
+    // Orquestrador mínimo — demo conceitual
+    const bubble = document.getElementById('gaia-bubble');
+    const panel = document.getElementById('gaia-panel');
+    const log = document.getElementById('gaia-log');
+    const status = document.getElementById('gaia-status');
+    const startBtn = document.getElementById('start-listen');
+    const stopBtn = document.getElementById('stop-listen');
+
+    function addLog(s){const p=document.createElement('div');p.textContent=s;log.prepend(p)}
+
+    bubble.addEventListener('click',()=>{panel.style.display = panel.style.display === 'none' ? 'block' : 'none'});
+
+    // Simple persona/profile (placeholder)
+    const persona = {
+      name: "Antonio Alberto Lopes Elias",
+      role: "Responsável",
+      preferences: {food:[], meds:[]},
+      policy:{emergencyConfirm:true}
+    };
+
+    addLog('Persona carregada: '+persona.name);
+    status.textContent = 'pronto';
+
+    // Web Speech API (ASR) minimal — fallback se não houver
+    let recognition = null;
+    if(window.webkitSpeechRecognition || window.SpeechRecognition){
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SR();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.onstart = ()=>addLog('[ASR] começando...');
+      recognition.onresult = (ev)=>{
+        const text = Array.from(ev.results).map(r=>r[0].transcript).join('');
+        addLog('[ASR] ' + text);
+        // Orquestrador simples: echo + TTS
+        speak('Você disse: ' + text);
+      };
+      recognition.onerror = (e)=>addLog('[ASR-erro] '+e.error);
+      recognition.onend = ()=>addLog('[ASR] finalizado');
+    } else addLog('ASR não disponível neste navegador');
+
+    startBtn.addEventListener('click',()=>{if(recognition){recognition.start()}else addLog('ASR indisponível')});
+    stopBtn.addEventListener('click',()=>{if(recognition)recognition.stop()});
+
+    // TTS helper
+    function speak(text){
+      if('speechSynthesis' in window){
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'pt-BR';
+        speechSynthesis.cancel();
+        speechSynthesis.speak(u);
+        addLog('[TTS] ' + text);
+      } else addLog('[TTS] indisponível');
+    }
+
+    // Vision stub: request webcam and detect brightness changes as proxy de piscar
+    async function startVisionDemo(){
+      try{
+        const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+        const v = document.createElement('video'); v.autoplay=true; v.srcObject = stream; v.style.display='none'; document.body.appendChild(v);
+        const c = document.createElement('canvas'); const ctx=c.getContext('2d');
+        v.addEventListener('play',()=>{
+          c.width = v.videoWidth || 320; c.height = v.videoHeight || 240;
+          let lastAvg = null; let blinkCount=0; setInterval(()=>{
+            try{ctx.drawImage(v,0,0,c.width,c.height); const d = ctx.getImageData(0,0,c.width,c.height).data; let sum=0; for(let i=0;i<d.length;i+=4) sum += (d[i]+d[i+1]+d[i+2]); const avg = sum/(d.length/4*3); if(lastAvg!==null){ if(avg < lastAvg*0.6) { blinkCount++; addLog('[Vision] Piscar detectado #'+blinkCount); /* mapear: curto/longo heurística */ speak('Piscar detectado'); } } lastAvg = avg;}catch(e){}}
+          ,400);
+        });
+        addLog('Visão demo ativa (webcam)');
+      } catch(e){addLog('Falha ao ativar webcam: '+e.message)}
+    }
+
+    // Start vision demo optionally (user opt-in). We'll not auto-start.
+    // startVisionDemo(); // ativar manualmente via console ou futuro botão
+
+    // Small API for orquestra (edge)
+    window.GAIA = {
+      persona, speak, addLog, startVisionDemo
+    };
+  </script>
+</body>
+</html>

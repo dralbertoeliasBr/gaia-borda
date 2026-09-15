@@ -1,0 +1,10 @@
+# CHAPTERS
+
+1. INTRO
+2. MANIFESTO
+3. ARQUITETURA
+4. PRIVACIDADE_E_ÉTICA
+5. PROTÓTIPOS
+6. ROADMAP
+
+Cada capítulo está em book/ com template.md
